@@ -1,50 +1,112 @@
 import logging as log
+import json
+import sys
 
 import pandas as pd
+import psycopg2 as pg
 from io import StringIO
-from utils import db_connect
+from src.utils.db_connect import db_connect
+from src.utils.redis_connect import redis_connect
 
-log.basicConfig(level=log.INFO)
+log.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=log.INFO,
+    stream=sys.stdout
+)
 
 class TripPipeline():
 
-    def __init__(self) -> None:
-        self.db_connection = db_connect()
-        
-    def _read_csv(self, file_path: str) -> pd.DataFrame:
+    def __init__(self, data: str) -> None:
+        self.postgresql_conn = db_connect()
+        self.redis_conn = redis_connect()
+        self.data = data
+    
+    def put_redis(self) -> None:
+        """
+        Put data into redis.
+        """
+        try:
+            self.redis_conn.rpush("trip_data", self.data)
+            log.info("Data inserted into redis.")
+        except Exception as error:
+            log.error(error)
+
+
+    def get_redis(self) -> dict:
         """
         Read a csv file and return a pandas dataframe.
         """
-        return pd.read_csv(file_path)
-
-    def get_latitude_longitue(self, data: pd.DataFrame) -> None:
-        """
-        Get latitude and longitude from the dataframe.
-        """
-        data["origin_coord_lat"] = data["origin_coord"].str.replace("POINT|[()]", "", regex=True).str.split(" ").apply(lambda x: x[1])
-        data["origin_coord_lng"] = data["origin_coord"].str.replace("POINT|[()]", "", regex=True).str.split(" ").apply(lambda x: x[2])
-        data["destination_coord_lat"] = data["destination_coord"].str.replace("POINT|[()]", "", regex=True).str.split(" ").apply(lambda x: x[1])
-        data["destination_coord_lng"] = data["destination_coord"].str.replace("POINT|[()]", "", regex=True).str.split(" ").apply(lambda x: x[2])
+        data = self.redis_conn.lpop("trip_data")
+        data = dict(json.loads(data))
 
         return data
 
-    def copy_from_stringio(self, data: pd.DataFrame, conn: pg.Connection) -> None:
+
+    def create_table(self) -> None:
+        """
+        Create a table in the database.
+        """
+
+        cur = self.postgresql_conn.cursor()
+
+        try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS trips(
+                    id SERIAL PRIMARY KEY,
+                    region varchar(200),
+                    origin_coord text,
+                    destination_coord text,
+                    datetime timestamp,
+                    datasource varchar(200)
+                );
+            """)
+            self.postgresql_conn.commit()
+            log.info("Table created.")
+            cur.close()
+
+        except (Exception, pg.DatabaseError) as error:
+            log.error(error)
+            self.postgresql_conn.rollback()
+            cur.close()
+
+
+    def insert_data(self) -> None:
         """
         Insert data into the database.
         """
-        buffer = StringIO()
-        data.to_csv(buffer, sep=',', header=True)
-        buffer.seek(0)
 
-        cur = conn.cursor()
+        data = self.get_redis()
+
+        cur = self.postgresql_conn.cursor()
 
         try:
-            cur.copy_from(buffer, 'trips', columns=data.columns, null="")
-            conn.commit()
-        except (Exception, pg.DatabaseError) as error:
-            log.error(error)
-            conn.rollback()
+            values = ",".join(["%({})s".format(keys) for keys in data.keys()])
+
+            sql_insert = f"""
+                INSERT INTO trips
+                (region, origin_coord, destination_coord, datetime, datasource)
+                VALUES ({values});
+            """
+
+            cur.execute(sql_insert, data)
+            self.postgresql_conn.commit()
+            log.info("Data inserted into the database.")
             cur.close()
 
-        log.info("Data inserted into the database.")
-        cur.close()
+        except (Exception, pg.DatabaseError) as error:
+            log.error(error)
+            self.postgresql_conn.rollback()
+            cur.close()
+
+    def run(self) -> None:
+        """
+        Run the pipeline.
+        """
+        self.put_redis()
+        self.create_table()
+        self.insert_data()
+        self.postgresql_conn.close()
+        self.redis_conn.close()
+        
+        log.info("PostgreSQL Connection closed.")
+        log.info("Redis Connection closed.")

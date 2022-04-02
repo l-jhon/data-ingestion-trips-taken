@@ -8,6 +8,8 @@ authors = ["Your Name <you@example.com>"]
 python = "^3.9"
 psycopg2-binary = "^2.9.3"
 pandas = "^1.4.1"
+SQLAlchemy = "^1.4.34"
+redis = "^4.2.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

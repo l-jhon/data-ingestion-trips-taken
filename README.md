@@ -50,3 +50,26 @@ Observations/Recommendation
 ● Please detail your code so that we can understand your reasoning and its use regardless
 of platform expertise.
 ● We recommend recording a video explaining how it works and steps of execution.
+
+## Challenge Results
+
+
+### Executing Local - Development Enviroment 
+Execute the data ingestion local using only poetry virtual env. In this case we need to create PostgreSQL and Redis service to execute the data ingestion, because this is a requirement to execute the project.
+
+Steps:
+```
+cd infra/local/dev && ./create_services.sh
+cd - && python main --file data/<file_name>
+
+```
+
+### Executing Local - Production Enviroment
+In this case we can using docker-compose to create all services we need to execute the data ingestion pipeline, include PostgreSQL Database, Redis to Queed and Python App, the main part of this project.
+
+This option is with all services deployed using Containers.
+
+Steps:
+```
+docker-compose exec python_app python main.py --file data/<file_name>
+```

@@ -1,9 +1,18 @@
-import pyscopg2 as pg
+import psycopg2 as pg
 import os
+import sys
 import logging as log
 
+log.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=log.INFO,
+    stream=sys.stdout
+)
 
-log.basicConfig(level=log.INFO)
+HOST = os.environ.get('POSTGRES_HOST')
+DATABASE = os.environ.get('POSTGRES_DB')
+USER = os.environ.get('POSTGRES_USER')
+PASSWORD = os.environ.get('POSTGRES_PASSWORD')
 
 def db_connect():
     """
@@ -12,8 +21,8 @@ def db_connect():
     """
     try:
         log.info('Connecting to the PostgreSQL database...')
-        conn = pg.connect(host="localhost", database="postgres", user="postgres", password="postgres")
+        conn = pg.connect(host=HOST, database=DATABASE, user=USER, password=PASSWORD)
+        log.info("Connection established.")
+        return conn
     except (Exception, pg.DatabaseError) as error:
-        print(error)
-    log.info("Connection established.")
-    return conn
+        log.error(error)

@@ -1,0 +1,49 @@
+version: '3'
+
+# Run as
+# docker-compose build; docker-compose up -d
+# Check with
+# docker ps
+# Then check the logs with
+# docker logs --tail 50 $container_id
+# docker-compose images
+# docker-compose logs --tail 20 repo_name
+
+services:
+
+  postgres_db:
+    image: postgres:11.1
+    environment:   # Set up postgres database name and password
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: trips
+      POSTGRES_USER: trips
+    ports:    # Set up ports exposed for other containers to connect to
+      - 5432:5432
+    networks:
+      - app-tier
+    volumes:
+      - ./postgres:/docker-entrypoint-initdb.d
+
+  python_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres_db
+    networks:
+      - app-tier
+    volumes:
+    - ./data:/app/data
+    command:
+      tail -f /dev/null
+
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    networks:
+      - app-tier
+
+networks:
+  app-tier:
+    driver: bridge
