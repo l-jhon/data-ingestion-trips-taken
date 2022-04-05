@@ -4,7 +4,7 @@ import json
 import pandas as pd
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
 
-from src.pipelines.trip import TripPipeline
+from src.trip import Trip
 
 
 def get_args() -> Namespace:
@@ -24,6 +24,15 @@ def get_args() -> Namespace:
         The path to the csv file.
         """
     )
+
+    parser.add_argument(
+        "--metric",
+        type=str,
+        help="""
+        Return average number of trips per week for each region.
+        """
+    )
+
     return parser.parse_args()
 
 
@@ -35,13 +44,34 @@ def main() -> None:
     log.info("Starting the script...")
     args = get_args()
 
-    trips = pd.read_csv(args.file)
-    trips = trips.to_dict("records")
+    if args.metric == "weekly":
+        log.info("Calculating average number of trips per week...")
+        trip = Trip(None)
+        trip.get_average_trips_per_week()
+    
+    elif args.metric == "commonly":
+        log.info("Getting the latest datasource of two commonly region...")
+        trip = Trip(None)
+        trip.get_latest_datasource()
 
-    for trip in trips:
-        data = json.dumps(trip)
-        trip_pipeline = TripPipeline(data)
-        trip_pipeline.run()
+    elif args.metric == "cheap_mobile":
+        log.info("Getting the number of appearance for data source 'cheap_mobile' in each region...")
+        trip = Trip(None)
+        trip.get_number_of_appearance()
+
+    elif args.file:
+
+        log.info("Starting data ingestion...")
+
+        trips = pd.read_csv(args.file)
+        trips = trips.to_dict("records")
+
+        for trip in trips:
+            data = json.dumps(trip)
+            trip = Trip(data)
+            trip.run()
+
+        log.info("Data ingestion finished...")
 
     log.info("Script finished.")
 
