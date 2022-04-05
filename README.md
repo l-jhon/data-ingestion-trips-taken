@@ -56,7 +56,6 @@ using Redis as a Queue, we can receive a lot of entries and send it to SQL Datab
 
 In this project we used docker to deploy some services to run the project in the local environment, and this is great because you can run this code in any environment you want, just install ```docker``` and ```docker-compose```.
 
-**The user can see the running status through the logs that are generated in the console.**
 ### Data Ingestion Pipeline:
 
 ![Alt text](docs/pipeline_docker_compose.png?raw=true "Data Ingestion Pipeline")
@@ -117,4 +116,21 @@ Notes:
 * This designed solution is intended to be scalable, providing the end user with a great solution to perform massive data ingestion and data analysis in real time or in batch if the user does not need the data in real time.
 * In this solution we have a Lambda Architecture, where we can have batch processing and streaming processing, to give all the necessary analytical support to users, so that they can make decisions based on data.
 
+
+## Notes
+
+* The user can see the running status through the logs that are generated in the console.
+* The data was stored in the PostgreSQL Database following the instructions on grouping similar trips, in this case it was only possible to group by time, value extracted from the datetime column.
+* Script to create table and partitions:
+  ```
+  cd resources/ddl/ && cat create_table_trips.sql
+  ```
+
+## Improvements
+* Deploy this solution on cloud using Terraform as solution for infra as code
+* Refactor the log messages, change the method to show the user what the status of data ingestion is.
+* Add CI/CD Pipeline to automate the deploy
+* Add Data Quality in data pipeline
+* Add Unit test to assure the quality of the data and code.
+* Improve table partitioning in SQL Database, to use origin_coord and destination_coord to group similar data.
 
